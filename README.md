@@ -1,7 +1,7 @@
-# terraform-alicloud-redis
+# Terraform-huaweicloud-c2c
 
 #### 介绍
-**alicloud redis module**
+**huaweicloud c2c module**
 
 #### 软件架构
 软件架构说明
@@ -10,95 +10,80 @@
 #### 安装教程
 
 1.  install Terraform
-2.  deploy ak(aliyun)
+2.  deploy ak/sk(huawei)
 3.  terraform apply
 
 #### 使用说明
 
 ```json
-provider "alicloud" {
-  profile = "default"
-  version = "1.151.0"
+terraform {
+
+  required_version = ">= 0.14"
+
+  required_providers {
+  huaweicloud = {
+  source  = "huaweicloud/huaweicloud"
+  version = "1.37.1"
+}
+random = {
+  source  = "hashicorp/random"
+  version = "3.2.0"
+}
+null = {
+  source  = "hashicorp/null"
+  version = "3.1.1"
+}
+}
 }
 
-variable "name" {
-  default = "redis"
+module "c2c" {
+source = "../"
+
+region = "cn-north-4"
+
+myip = "220.249.82.10/32"
+
+// VPC Vars
+vpc_name        = "c2c"
+vpc_description = "上海老干妈有限公司"
+subnet_name     = "c2c-subnet"
+
+// MySQL Vars
+rds_create     = true
+rds_name       = "c2c-mysql"
+rds_db_version = "5.7"
+rds_password   = "Huangwei@120521"
+
+// Redis Vars
+dcs_create   = false
+dcs_name     = "c2c-redis"
+dcs_capacity = 1
+dcs_password = "Huangwei@120521"
+dcs_whitelists = [
+{
+group_name = "test-group1"
+ip_address = ["192.168.10.0/16"]
 }
+]
 
-data "alicloud_zones" "default" {
-  available_resource_creation = "KVStore"
-}
+// Mongodb Vars
+dds_create   = false
+dds_name     = "c2c-mongodb"
+dds_password = "Huangwei@120521"
 
-resource "alicloud_vpc" "default" {
-  vpc_name       = var.name
-  cidr_block = "172.16.0.0/16"
-}
+// RabbitMQ Vars
+rabbitmq_create = false
+rabbitmq_name   = "c2c"
+rabbitmq_password = "Huangwei@120521"
 
-resource "alicloud_vswitch" "default" {
-  vpc_id       = alicloud_vpc.default.id
-  cidr_block   = "172.16.0.0/24"
-  zone_id      = data.alicloud_zones.default.zones[0].id
-  vswitch_name = var.name
-  depends_on = [alicloud_vpc.default]
-}
+// Elasticsearch Vars
+css_create = false
+css_name = "c2c_es"
 
-locals {
-  dms_group = ["0.0.0.0/0"]
-  default_group = ["172.16.0.0/16"]
+// CCE Vars
+cce_create = true
+cce_cluster_name = "c2c-cce"
+cce_nodepool_name = "c2c-pool"
 
-  instance_name = "redis"
-
-  #################################
-  #                               #
-  #            databases          #
-  #                               #
-  #################################
-
-  config = {
-    maxmemory-policy  = "volatile-ttl",
-    appendonly        = "no",
-    notify-keyspace-events        = "Ex"
-  }
-
-  accounts = [
-    {
-      name         = "user1"
-      password     = "Test12345"
-      privilege = "RoleReadWrite"
-      description  = "desp1"
-    },
-    {
-      name         = "user2"
-      password     = "Test12345"
-      privilege    = "RoleReadOnly"
-      description  = "deps2"
-    },
-    {
-      name         = "user3"
-      password     = "Test12345"
-      privilege    = "RoleRepl"
-      description  = "deps3"
-    }
-  ]
-
-  tags = {
-    app = "ebike"
-    tenant = "xiaojiu"
-    env    = "prod"
-  }
-
-}
-
-module "rds" {
-  source  = "git@gitee.com:mmbluex/terraform-alicloud-redis.git"
-
-  db_instance_name  = local.instance_name
-  vswitch_id     = alicloud_vswitch.default.id
-  security_ips   = concat(local.default_group, local.dms_group)
-  config         = local.config
-  allocate_public_connection = true
-  connection_string_prefix = "allocatetestupdate"
-  accounts       = local.accounts
-  tags           = local.tags
 }
 ```
